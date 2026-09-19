@@ -1,17 +1,16 @@
 import logging
-
+from modules.normalize import normalize_rpc_data
 
 logger = logging.getLogger(__name__)
-
 
 def generate_chain_data(w3):
     logger.info("Collecting chain data")
 
     try:
-        client = w3.client_version
+        client_version = w3.client_version
         logger.debug(
             "Client version collected successfully: %s",
-            client,
+            client_version,
         )
 
     except Exception as exc:
@@ -67,12 +66,12 @@ def generate_chain_data(w3):
         )
         raise
 
-    chain_data = {
-        "client": client,
+    chain_data = normalize_rpc_data({
+        "client_version": client_version,
         "chain_id": chain_id,
         "block_number": block_number,
         "syncing": syncing,
-    }
+    })
 
     logger.debug(
         "Chain data generated successfully: %s",

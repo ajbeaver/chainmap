@@ -3,7 +3,7 @@ import logging
 from web3.exceptions import TransactionNotFound
 
 from modules.normalize import normalize_rpc_data
-from modules.utils import validate_32byte_hash
+from modules.validation import validate_32byte_hash
 
 
 logger = logging.getLogger(__name__)

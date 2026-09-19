@@ -1,98 +1,117 @@
-import sys
 import logging
+
 from web3 import Web3
+
+from modules.normalize import normalize_rpc_data
+from modules.validation import validate_address
+
 
 logger = logging.getLogger(__name__)
 
-def _validate_address(address):
-    if not isinstance(address, str):
-        raise ValueError("Address must be a string")
 
-    if not address.startswith("0x"):
-        raise ValueError("Address must begin with 0x")
-
-    if not Web3.is_address(address):
-        raise ValueError("Address must be a valid 20-byte Ethereum address")
-
-    address_body = address[2:]
-
-    is_lower = address_body == address_body.lower()
-    is_upper = address_body == address_body.upper()
-
-    if not is_lower and not is_upper:
-        if not Web3.is_checksum_address(address):
-            raise ValueError("Address has an invalid checksum")
-
-    return Web3.to_checksum_address(address)
-
-def generate_address_data(w3, acct_addr):
+def generate_address_data(
+    w3,
+    address,
+    block_identifier="latest",
+):
     logger.info("Collecting address data")
 
     try:
-        address = _validate_address(acct_addr)
+        address = validate_address(address)
 
     except ValueError as exc:
-        logger.error("Invalid Ethereum address: %s", exc)
-        logger.debug("Address validation exception", exc_info=True)
-        sys.exit(1)
+        logger.error(
+            "Invalid Ethereum address: %s",
+            exc,
+        )
+        logger.debug(
+            "Address validation exception: %s",
+            type(exc).__name__,
+        )
+        raise
+
+    rpc_address = Web3.to_checksum_address(address)
+
+    logger.debug(
+        "Requesting address state: address=%s block=%r",
+        rpc_address,
+        block_identifier,
+    )
 
     try:
-        balance = w3.eth.get_balance(address)
-        logger.debug("Address balance collected successfully: %s", balance)
+        balance = w3.eth.get_balance(
+            rpc_address,
+            block_identifier,
+        )
+
+        logger.debug(
+            "Address balance collected successfully: %s",
+            balance,
+        )
 
     except Exception as exc:
-        logger.error("Failed to retrieve address balance: %s", exc)
-        logger.debug("Address balance exception", exc_info=True)
-        sys.exit(1)
+        logger.error(
+            "Failed to retrieve address balance"
+        )
+        logger.debug(
+            "Address balance exception: %s",
+            type(exc).__name__,
+        )
+        raise
 
     try:
-        nonce = w3.eth.get_transaction_count(address)
-        logger.debug("Address nonce collected successfully: %s", nonce)
+        transaction_count = w3.eth.get_transaction_count(
+            rpc_address,
+            block_identifier,
+        )
+
+        logger.debug(
+            "Address transaction count collected successfully: %s",
+            transaction_count,
+        )
 
     except Exception as exc:
-        logger.error("Failed to retreive address nonce: %s", exc)
-        logger.debug("Address nonce exception", exc_info=True)
-        sys.exit(1)
+        logger.error(
+            "Failed to retrieve address transaction count"
+        )
+        logger.debug(
+            "Address transaction count exception: %s",
+            type(exc).__name__,
+        )
+        raise
 
     try:
-        code = w3.eth.get_code(address)
-        logger.debug("Address code collected successfully: %s", code)
+        code = w3.eth.get_code(
+            rpc_address,
+            block_identifier,
+        )
+
+        logger.debug(
+            "Address code collected successfully"
+        )
 
     except Exception as exc:
-        logger.error("Failed to retreive address code: %s", exc)
-        logger.debug("Address code exception", exc_info=True)
-        sys.exit(1)
+        logger.error(
+            "Failed to retrieve address code"
+        )
+        logger.debug(
+            "Address code exception: %s",
+            type(exc).__name__,
+        )
+        raise
 
-    account_type = "Contract" if len(code) > 0 else "EOA / No Code"
-    
-    address_data = {
+    address_data = normalize_rpc_data({
         "address": address,
         "balance": balance,
-        "nonce": nonce,
-        "code": w3.to_hex(code),
-        "account_type": account_type
-    }
+        "transaction_count": transaction_count,
+        "code": code,
+    })
 
-    logger.debug("Address data generated successfully: %s", address_data)
+    logger.debug(
+        "Address data collected successfully: "
+        "address=%s block=%r",
+        address,
+        block_identifier,
+    )
 
     return address_data
-
-def _format_address_data(w3, address_data):
-    logger.info("Formatting address data for human readable output")
-    formatted = address_data.copy()
-
-    formatted["balance"] = f'{w3.from_wei(address_data["balance"], "ether"):f} ETH'
-    formatted["nonce"] = f'{address_data["nonce"]:,}'
-    code = address_data.get("code", "0x")
-    code_size = (len(code) - 2) // 2
-
-    formatted["code_size"] = f"{code_size:,} bytes"
-    formatted.pop("code", None)
-
-    return formatted
-
-def address_status(w3, acct_addr):
-    address_data = generate_address_data(w3, acct_addr)
-    return _format_address_data(w3, address_data)
-
-    

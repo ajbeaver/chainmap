@@ -74,6 +74,19 @@ def test_sanitize_rpc_url_preserves_local_endpoint():
 
     assert result == rpc_url
 
+def test_sanitize_rpc_url_redacts_local_credentials():
+    rpc_url = (
+        "http://user:secret@127.0.0.1:8545"
+    )
+
+    result = sanitize_rpc_url(rpc_url)
+
+    assert result == (
+        "http://127.0.0.1:8545/[REDACTED]"
+    )
+
+    assert "user" not in result
+    assert "secret" not in result
 
 def test_sanitize_rpc_url_redacts_remote_path():
     rpc_url = (

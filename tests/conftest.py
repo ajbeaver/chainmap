@@ -93,6 +93,27 @@ def send_transaction(url, transaction):
     return tx_hash
 
 
+def build_call_runtime(address):
+    target = address.removeprefix("0x")
+
+    if len(target) != 40:
+        raise ValueError(
+            "Call target must be a 20-byte address"
+        )
+
+    return (
+        "6000"  # return size
+        "6000"  # return offset
+        "6000"  # input size
+        "6000"  # input offset
+        "6000"  # value
+        f"73{target}"  # target address
+        "61ffff"  # gas
+        "f1"  # CALL
+        "00"  # STOP
+    )
+    
+    
 def deploy_runtime(url, runtime_hex):
     runtime_hex = runtime_hex.removeprefix("0x")
     length = len(bytes.fromhex(runtime_hex))
@@ -200,7 +221,13 @@ def chain_state(anvil_url):
         },
     )
 
-    log_runtime = f"7f{TOPIC_0[2:]}60006000a100"
+    log_runtime = (
+        f"7f{TOPIC_0[2:]}"
+        "6000"
+        "6000"
+        "a1"
+        "00"
+    )
 
     log_contract, deploy_log_tx_hash = deploy_runtime(
         anvil_url,
@@ -216,6 +243,34 @@ def chain_state(anvil_url):
         },
     )
 
+    leaf_contract, _ = deploy_runtime(
+        anvil_url,
+        "00",
+    )
+
+    middle_contract, _ = deploy_runtime(
+        anvil_url,
+        build_call_runtime(
+            leaf_contract
+        ),
+    )
+
+    caller_contract, _ = deploy_runtime(
+        anvil_url,
+        build_call_runtime(
+            middle_contract
+        ),
+    )
+
+    nested_call_tx_hash = send_transaction(
+        anvil_url,
+        {
+            "from": ACCOUNT_0,
+            "to": caller_contract,
+            "gas": hex(250_000),
+        },
+    )
+
     latest_block = rpc_call(
         anvil_url,
         "eth_getBlockByNumber",
@@ -228,6 +283,10 @@ def chain_state(anvil_url):
         "log_contract": log_contract,
         "log_tx_hash": log_tx_hash,
         "deploy_log_tx_hash": deploy_log_tx_hash,
+        "leaf_contract": leaf_contract,
+        "middle_contract": middle_contract,
+        "caller_contract": caller_contract,
+        "nested_call_tx_hash": nested_call_tx_hash,
         "latest_block_number": int(
             latest_block["number"],
             16,

@@ -65,6 +65,121 @@ def test_call_tracer_preserves_complete_rpc_response(
     assert actual == expected
 
 
+def test_call_tracer_preserves_nested_calls(
+    w3,
+    chain_state,
+):
+    options = {
+        "tracer": "callTracer",
+    }
+
+    tx_hash = chain_state[
+        "nested_call_tx_hash"
+    ]
+
+    response = w3.provider.make_request(
+        "debug_traceTransaction",
+        [
+            tx_hash,
+            options,
+        ],
+    )
+
+    assert "error" not in response
+
+    expected = normalize_rpc_data(
+        response["result"]
+    )
+
+    actual = generate_trace_data(
+        w3,
+        tx_hash,
+        options,
+    )
+
+    assert actual == expected
+
+    assert (
+        actual["to"].lower()
+        == chain_state["caller_contract"].lower()
+    )
+
+    first_call = actual["calls"][0]
+
+    assert (
+        first_call["from"].lower()
+        == chain_state["caller_contract"].lower()
+    )
+
+    assert (
+        first_call["to"].lower()
+        == chain_state["middle_contract"].lower()
+    )
+
+    second_call = first_call["calls"][0]
+
+    assert (
+        second_call["from"].lower()
+        == chain_state["middle_contract"].lower()
+    )
+
+    assert (
+        second_call["to"].lower()
+        == chain_state["leaf_contract"].lower()
+    )
+
+
+def test_trace_rpc_error_raises(
+    w3,
+    chain_state,
+    monkeypatch,
+):
+    def fake_make_request(method, params):
+        return {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "error": {
+                "code": -32601,
+                "message": "method not found",
+            },
+        }
+
+    monkeypatch.setattr(
+        w3.provider,
+        "make_request",
+        fake_make_request,
+    )
+
+    with pytest.raises(Web3RPCError):
+        generate_trace_data(
+            w3,
+            chain_state["legacy_tx_hash"],
+        )
+
+
+def test_trace_missing_result_raises(
+    w3,
+    chain_state,
+    monkeypatch,
+):
+    def fake_make_request(method, params):
+        return {
+            "jsonrpc": "2.0",
+            "id": 1,
+        }
+
+    monkeypatch.setattr(
+        w3.provider,
+        "make_request",
+        fake_make_request,
+    )
+
+    with pytest.raises(Web3RPCError):
+        generate_trace_data(
+            w3,
+            chain_state["legacy_tx_hash"],
+        )
+
 def test_call_tracer_preserves_execution_fields(
     w3,
     chain_state,

@@ -127,6 +127,9 @@ def sanitize_rpc_url(rpc_url):
     has_sensitive_parts = (
         parsed.path not in ("", "/")
         or bool(parsed.query)
+        or parsed.username is not None
+        or parsed.password is not None
+        or bool(parsed.fragment)
     )
 
     if (

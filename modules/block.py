@@ -1,4 +1,5 @@
 import logging
+from modules.normalize import normalize_rpc_data
 from web3.exceptions import BlockNotFound
 
 
@@ -42,7 +43,7 @@ def generate_block_data(
         )
         raise
 
-    block_data = _normalize_rpc_data(block)
+    block_data = normalize_rpc_data(block)
 
     logger.debug(
         "Block data collected successfully: number=%s hash=%s",

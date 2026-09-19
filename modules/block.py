@@ -1,30 +1,8 @@
 import logging
-from collections.abc import Mapping
-
 from web3.exceptions import BlockNotFound
 
 
 logger = logging.getLogger(__name__)
-
-
-def _normalize_rpc_data(value):
-    if isinstance(value, (bytes, bytearray)):
-        return "0x" + bytes(value).hex()
-
-    if isinstance(value, Mapping):
-        return {
-            key: _normalize_rpc_data(item)
-            for key, item in value.items()
-        }
-
-    if isinstance(value, (list, tuple)):
-        return [
-            _normalize_rpc_data(item)
-            for item in value
-        ]
-
-    return value
-
 
 def generate_block_data(
     w3,

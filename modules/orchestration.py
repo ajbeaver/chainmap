@@ -1,3 +1,6 @@
+from modules.transaction import (
+    generate_transaction_data,
+)
 from modules.config import (
     build_chainmap_trace_options,
 )
@@ -37,6 +40,11 @@ def ingest_transaction(
             "Chain map chain_id does not "
             "match RPC chain_id"
         )
+
+    generate_transaction_data(
+        w3,
+        tx_hash,
+    )
 
     trace_data = generate_trace_data(
         w3,

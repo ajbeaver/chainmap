@@ -1,4 +1,7 @@
 import pytest
+from web3.exceptions import TransactionNotFound
+
+from conftest import UNKNOWN_HASH
 
 from modules.orchestration import (
     create_chainmap_for_rpc,
@@ -85,16 +88,33 @@ def test_ingest_transaction_uses_same_rpc_object(
 
     seen = {}
 
+    def fake_generate_transaction_data(
+        received_w3,
+        tx_hash,
+    ):
+        seen["transaction_w3"] = (
+            received_w3
+        )
+
+        return {
+            "hash": tx_hash,
+        }
+
     def fake_generate_trace_data(
         received_w3,
         tx_hash,
         options,
     ):
-        seen["w3"] = received_w3
+        seen["trace_w3"] = received_w3
 
         return {
             "type": "CALL",
         }
+
+    monkeypatch.setattr(
+        "modules.orchestration.generate_transaction_data",
+        fake_generate_transaction_data,
+    )
 
     monkeypatch.setattr(
         "modules.orchestration.generate_trace_data",
@@ -107,4 +127,58 @@ def test_ingest_transaction_uses_same_rpc_object(
         "0x" + "11" * 32,
     )
 
-    assert seen["w3"] is w3
+    assert (
+        seen["transaction_w3"]
+        is w3
+    )
+
+    assert (
+        seen["trace_w3"]
+        is w3
+    )
+
+
+def test_unknown_transaction_stops_before_trace(
+    w3,
+    monkeypatch,
+):
+    chain_map = create_chainmap_for_rpc(
+        w3
+    )
+
+    trace_called = False
+
+    def fake_generate_trace_data(
+        w3,
+        tx_hash,
+        options,
+    ):
+        nonlocal trace_called
+        trace_called = True
+
+        raise AssertionError(
+            "Trace must not be requested "
+            "for an unknown transaction"
+        )
+
+    monkeypatch.setattr(
+        "modules.orchestration.generate_trace_data",
+        fake_generate_trace_data,
+    )
+
+    with pytest.raises(
+        TransactionNotFound
+    ):
+        ingest_transaction(
+            w3,
+            chain_map,
+            UNKNOWN_HASH,
+        )
+
+    assert trace_called is False
+
+    assert chain_map == {
+        "chain_id": w3.eth.chain_id,
+        "nodes": {},
+        "edges": {},
+    }

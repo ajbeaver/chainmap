@@ -1,3 +1,4 @@
+import copy
 import logging
 from collections.abc import Mapping
 
@@ -69,11 +70,11 @@ def extract_execution_frames(
                 "Execution frame calls must be a list"
             )
 
-        local_frame = {
+        local_frame = copy.deepcopy({
             key: value
             for key, value in frame.items()
             if key != "calls"
-        }
+        })
 
         records.append({
             "transaction_hash": tx_hash,

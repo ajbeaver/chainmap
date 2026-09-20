@@ -320,3 +320,85 @@ def test_execution_composes_with_real_call_trace(
         second_call["to"].lower()
         == chain_state["leaf_contract"].lower()
     )
+
+
+def test_execution_frames_do_not_alias_input():
+    trace_data = {
+        "type": "CALL",
+        "from": "0xaaa",
+        "to": "0xbbb",
+        "logs": [
+            {
+                "address": "0xccc",
+                "topics": [
+                    "0x111",
+                    "0x222",
+                ],
+                "data": "0x1234",
+            }
+        ],
+        "customField": {
+            "nested": [
+                "preserve-me",
+            ],
+        },
+    }
+
+    records = extract_execution_frames(
+        trace_data,
+        TX_HASH,
+    )
+
+    frame = records[0]["frame"]
+
+    frame["logs"][0]["data"] = "0xchanged"
+    frame["logs"][0]["topics"].append(
+        "0x333"
+    )
+    frame["customField"]["nested"].append(
+        "changed"
+    )
+
+    assert trace_data["logs"] == [
+        {
+            "address": "0xccc",
+            "topics": [
+                "0x111",
+                "0x222",
+            ],
+            "data": "0x1234",
+        }
+    ]
+
+    assert trace_data["customField"] == {
+        "nested": [
+            "preserve-me",
+        ],
+    }
+
+
+def test_execution_frames_are_isolated_from_later_input_mutation():
+    trace_data = {
+        "type": "CALL",
+        "from": "0xaaa",
+        "to": "0xbbb",
+        "logs": [
+            {
+                "data": "0x1234",
+            }
+        ],
+    }
+
+    records = extract_execution_frames(
+        trace_data,
+        TX_HASH,
+    )
+
+    trace_data["logs"][0]["data"] = (
+        "0xchanged"
+    )
+
+    assert (
+        records[0]["frame"]["logs"][0]["data"]
+        == "0x1234"
+    )

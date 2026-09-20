@@ -142,58 +142,160 @@ def ingest_relationships(
     return chain_map
 
 
+def _validate_canonical_address_key(
+    address,
+    label,
+):
+    try:
+        validate_address(address)
+
+    except ValueError as exc:
+        raise ValueError(
+            f"{label} must be a valid Ethereum address"
+        ) from exc
+
+    if address != address.lower():
+        raise ValueError(
+            f"{label} must be lowercase canonical form"
+        )
+
+    return address
+
+
 def _validate_map(chain_map):
-    if not isinstance(chain_map, dict):
-        raise ValueError(
-            "Chain map must be a dictionary"
-        )
-
-    if "chain_id" not in chain_map:
-        raise ValueError(
-            "Chain map must include chain_id"
-        )
-
-    if (
-        not isinstance(
-            chain_map["chain_id"],
-            int,
-        )
-        or isinstance(
-            chain_map["chain_id"],
-            bool,
-        )
-        or chain_map["chain_id"] < 0
-    ):
-        raise ValueError(
-            "Chain map chain_id must be "
-            "a non-negative integer"
-        )
-
-    if "nodes" not in chain_map:
-        raise ValueError(
-            "Chain map must include nodes"
-        )
-
-    if not isinstance(
-        chain_map["nodes"],
-        dict,
-    ):
-        raise ValueError(
-            "Chain map nodes must be a dictionary"
-        )
-
-    if "edges" not in chain_map:
-        raise ValueError(
-            "Chain map must include edges"
-        )
-
-    if not isinstance(
-        chain_map["edges"],
-        dict,
-    ):
-        raise ValueError(
-            "Chain map edges must be a dictionary"
-        )
+            if not isinstance(chain_map, dict):
+                raise ValueError(
+                    "Chain map must be a dictionary"
+                )
+        
+            if "chain_id" not in chain_map:
+                raise ValueError(
+                    "Chain map must include chain_id"
+                )
+        
+            if (
+                not isinstance(
+                    chain_map["chain_id"],
+                    int,
+                )
+                or isinstance(
+                    chain_map["chain_id"],
+                    bool,
+                )
+                or chain_map["chain_id"] < 0
+            ):
+                raise ValueError(
+                    "Chain map chain_id must be "
+                    "a non-negative integer"
+                )
+        
+            if "nodes" not in chain_map:
+                raise ValueError(
+                    "Chain map must include nodes"
+                )
+        
+            if not isinstance(
+                chain_map["nodes"],
+                dict,
+            ):
+                raise ValueError(
+                    "Chain map nodes must be a dictionary"
+                )
+        
+            if "edges" not in chain_map:
+                raise ValueError(
+                    "Chain map must include edges"
+                )
+        
+            if not isinstance(
+                chain_map["edges"],
+                dict,
+            ):
+                raise ValueError(
+                    "Chain map edges must be a dictionary"
+                )
+        
+            for address, node in (
+                chain_map["nodes"].items()
+            ):
+                _validate_canonical_address_key(
+                    address,
+                    "Chain map node key",
+                )
+        
+                if not isinstance(node, dict):
+                    raise ValueError(
+                        "Chain map node must be a dictionary"
+                    )
+        
+                if node:
+                    raise ValueError(
+                        "Chain map node must be empty"
+                    )
+        
+            for source, targets in (
+                chain_map["edges"].items()
+            ):
+                _validate_canonical_address_key(
+                    source,
+                    "Chain map edge source",
+                )
+        
+                if source not in chain_map["nodes"]:
+                    raise ValueError(
+                        "Chain map edge source "
+                        "must exist in nodes"
+                    )
+        
+                if not isinstance(targets, dict):
+                    raise ValueError(
+                        "Chain map edge targets "
+                        "must be a dictionary"
+                    )
+        
+                for target, edge in targets.items():
+                    _validate_canonical_address_key(
+                        target,
+                        "Chain map edge target",
+                    )
+        
+                    if target not in chain_map["nodes"]:
+                        raise ValueError(
+                            "Chain map edge target "
+                            "must exist in nodes"
+                        )
+        
+                    if not isinstance(edge, Mapping):
+                        raise ValueError(
+                            "Chain map edge must be a mapping"
+                        )
+        
+                    if set(edge) != {
+                        "observations",
+                    }:
+                        raise ValueError(
+                            "Chain map edge must contain "
+                            "only observations"
+                        )
+        
+                    observations = edge[
+                        "observations"
+                    ]
+        
+                    if not isinstance(
+                        observations,
+                        list,
+                    ):
+                        raise ValueError(
+                            "Chain map edge observations "
+                            "must be a list"
+                        )
+        
+                    if not observations:
+                        raise ValueError(
+                            "Chain map edge observations "
+                            "must not be empty"
+                        )
 
 
 def _validate_relationship(relationship):
@@ -323,40 +425,9 @@ def _collect_existing_observations(
     for source, targets in (
         chain_map["edges"].items()
     ):
-        if not isinstance(targets, dict):
-            raise ValueError(
-                "Chain map edge targets "
-                "must be a dictionary"
-            )
-
         for target, edge in targets.items():
-            if not isinstance(edge, Mapping):
-                raise ValueError(
-                    "Chain map edge must "
-                    "be a mapping"
-                )
-
-            if "observations" not in edge:
-                raise ValueError(
-                    "Chain map edge must "
-                    "include observations"
-                )
-
-            edge_observations = edge[
-                "observations"
-            ]
-
-            if not isinstance(
-                edge_observations,
-                list,
-            ):
-                raise ValueError(
-                    "Chain map edge observations "
-                    "must be a list"
-                )
-
             for observation in (
-                edge_observations
+                edge["observations"]
             ):
                 canonical_from, canonical_to = (
                     _validate_relationship(

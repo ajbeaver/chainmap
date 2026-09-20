@@ -962,10 +962,101 @@ def test_ingest_rejects_invalid_map_structure(
         )
 
 
+def test_ingest_rejects_invalid_node_key():
+    chain_map = create_map(
+        CHAIN_ID
+    )
+
+    chain_map["nodes"] = {
+        "not-an-address": {},
+    }
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Chain map node key must be "
+            "a valid Ethereum address"
+        ),
+    ):
+        ingest_relationships(
+            chain_map,
+            [],
+        )
+
+
+def test_ingest_rejects_noncanonical_node_key():
+    chain_map = create_map(
+        CHAIN_ID
+    )
+
+    chain_map["nodes"] = {
+        CHECKSUM_A: {},
+    }
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Chain map node key must be "
+            "lowercase canonical form"
+        ),
+    ):
+        ingest_relationships(
+            chain_map,
+            [],
+        )
+
+
+def test_ingest_rejects_non_dictionary_node():
+    chain_map = create_map(
+        CHAIN_ID
+    )
+
+    chain_map["nodes"] = {
+        ADDRESS_A: [],
+    }
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Chain map node must be "
+            "a dictionary"
+        ),
+    ):
+        ingest_relationships(
+            chain_map,
+            [],
+        )
+
+
+def test_ingest_rejects_non_empty_node():
+    chain_map = create_map(
+        CHAIN_ID
+    )
+
+    chain_map["nodes"] = {
+        ADDRESS_A: {
+            "unexpected": True,
+        },
+    }
+
+    with pytest.raises(
+        ValueError,
+        match="Chain map node must be empty",
+    ):
+        ingest_relationships(
+            chain_map,
+            [],
+        )
+
+
 def test_ingest_rejects_invalid_edge_targets():
     chain_map = create_map(
         CHAIN_ID
     )
+
+    chain_map["nodes"] = {
+        ADDRESS_A: {},
+    }
 
     chain_map["edges"][
         ADDRESS_A
@@ -984,10 +1075,145 @@ def test_ingest_rejects_invalid_edge_targets():
         )
 
 
+def test_ingest_rejects_noncanonical_edge_source():
+    chain_map = create_map(
+        CHAIN_ID
+    )
+
+    chain_map["nodes"] = {
+        ADDRESS_A: {},
+        ADDRESS_B: {},
+    }
+
+    chain_map["edges"] = {
+        CHECKSUM_A: {
+            ADDRESS_B: {
+                "observations": [
+                    build_relationship(),
+                ],
+            },
+        },
+    }
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Chain map edge source must be "
+            "lowercase canonical form"
+        ),
+    ):
+        ingest_relationships(
+            chain_map,
+            [],
+        )
+
+
+def test_ingest_rejects_noncanonical_edge_target():
+    chain_map = create_map(
+        CHAIN_ID
+    )
+
+    chain_map["nodes"] = {
+        ADDRESS_A: {},
+        ADDRESS_B: {},
+    }
+
+    chain_map["edges"] = {
+        ADDRESS_A: {
+            CHECKSUM_B: {
+                "observations": [
+                    build_relationship(),
+                ],
+            },
+        },
+    }
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Chain map edge target must be "
+            "lowercase canonical form"
+        ),
+    ):
+        ingest_relationships(
+            chain_map,
+            [],
+        )
+
+
+def test_ingest_rejects_edge_with_missing_source_node():
+    chain_map = create_map(
+        CHAIN_ID
+    )
+
+    chain_map["nodes"] = {
+        ADDRESS_B: {},
+    }
+
+    chain_map["edges"] = {
+        ADDRESS_A: {
+            ADDRESS_B: {
+                "observations": [
+                    build_relationship(),
+                ],
+            },
+        },
+    }
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Chain map edge source "
+            "must exist in nodes"
+        ),
+    ):
+        ingest_relationships(
+            chain_map,
+            [],
+        )
+
+
+def test_ingest_rejects_edge_with_missing_target_node():
+    chain_map = create_map(
+        CHAIN_ID
+    )
+
+    chain_map["nodes"] = {
+        ADDRESS_A: {},
+    }
+
+    chain_map["edges"] = {
+        ADDRESS_A: {
+            ADDRESS_B: {
+                "observations": [
+                    build_relationship(),
+                ],
+            },
+        },
+    }
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Chain map edge target "
+            "must exist in nodes"
+        ),
+    ):
+        ingest_relationships(
+            chain_map,
+            [],
+        )
+
+
 def test_ingest_rejects_non_mapping_edge():
     chain_map = create_map(
         CHAIN_ID
     )
+
+    chain_map["nodes"] = {
+        ADDRESS_A: {},
+        ADDRESS_B: {},
+    }
 
     chain_map["edges"] = {
         ADDRESS_A: {
@@ -1010,6 +1236,11 @@ def test_ingest_rejects_edge_without_observations():
         CHAIN_ID
     )
 
+    chain_map["nodes"] = {
+        ADDRESS_A: {},
+        ADDRESS_B: {},
+    }
+
     chain_map["edges"] = {
         ADDRESS_A: {
             ADDRESS_B: {},
@@ -1019,8 +1250,44 @@ def test_ingest_rejects_edge_without_observations():
     with pytest.raises(
         ValueError,
         match=(
-            "Chain map edge must include "
-            "observations"
+            "Chain map edge must contain "
+            "only observations"
+        ),
+    ):
+        ingest_relationships(
+            chain_map,
+            [],
+        )
+
+
+def test_ingest_rejects_extra_edge_fields():
+    chain_map = create_map(
+        CHAIN_ID
+    )
+
+    relationship = build_relationship()
+
+    chain_map["nodes"] = {
+        ADDRESS_A: {},
+        ADDRESS_B: {},
+    }
+
+    chain_map["edges"] = {
+        ADDRESS_A: {
+            ADDRESS_B: {
+                "observations": [
+                    relationship,
+                ],
+                "count": 1,
+            },
+        },
+    }
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Chain map edge must contain "
+            "only observations"
         ),
     ):
         ingest_relationships(
@@ -1033,6 +1300,11 @@ def test_ingest_rejects_non_list_edge_observations():
     chain_map = create_map(
         CHAIN_ID
     )
+
+    chain_map["nodes"] = {
+        ADDRESS_A: {},
+        ADDRESS_B: {},
+    }
 
     chain_map["edges"] = {
         ADDRESS_A: {
@@ -1055,6 +1327,37 @@ def test_ingest_rejects_non_list_edge_observations():
         )
 
 
+def test_ingest_rejects_empty_edge_observations():
+    chain_map = create_map(
+        CHAIN_ID
+    )
+
+    chain_map["nodes"] = {
+        ADDRESS_A: {},
+        ADDRESS_B: {},
+    }
+
+    chain_map["edges"] = {
+        ADDRESS_A: {
+            ADDRESS_B: {
+                "observations": [],
+            },
+        },
+    }
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Chain map edge observations "
+            "must not be empty"
+        ),
+    ):
+        ingest_relationships(
+            chain_map,
+            [],
+        )
+
+
 def test_ingest_rejects_wrong_source_edge():
     chain_map = create_map(
         CHAIN_ID
@@ -1064,6 +1367,12 @@ def test_ingest_rejects_wrong_source_edge():
         source=ADDRESS_A,
         target=ADDRESS_B,
     )
+
+    chain_map["nodes"] = {
+        ADDRESS_A: {},
+        ADDRESS_B: {},
+        ADDRESS_C: {},
+    }
 
     chain_map["edges"] = {
         ADDRESS_C: {
@@ -1097,6 +1406,12 @@ def test_ingest_rejects_wrong_target_edge():
         source=ADDRESS_A,
         target=ADDRESS_B,
     )
+
+    chain_map["nodes"] = {
+        ADDRESS_A: {},
+        ADDRESS_B: {},
+        ADDRESS_C: {},
+    }
 
     chain_map["edges"] = {
         ADDRESS_A: {

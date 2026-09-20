@@ -10,7 +10,7 @@ from modules.rpc import connect_rpc
 
 
 APP_NAME = "chainmap"
-VERSION = "v0.0.1"
+VERSION = "v0.0.1-beta.1"
 
 LIBRARY_LOGGERS = [
     "web3",

@@ -25,22 +25,10 @@ def create_chainmap_for_rpc(w3):
     )
 
 
-def ingest_transaction(
+def collect_transaction_relationships(
     w3,
-    chain_map,
     tx_hash,
 ):
-    rpc_chain_id = w3.eth.chain_id
-
-    if (
-        chain_map["chain_id"]
-        != rpc_chain_id
-    ):
-        raise ValueError(
-            "Chain map chain_id does not "
-            "match RPC chain_id"
-        )
-
     generate_transaction_data(
         w3,
         tx_hash,
@@ -59,11 +47,47 @@ def ingest_transaction(
         )
     )
 
-    relationships = extract_relationships(
+    return extract_relationships(
         execution_records
     )
 
+
+def ingest_relationship_batch(
+    chain_map,
+    relationships,
+):
     ingest_relationships(
+        chain_map,
+        relationships,
+    )
+
+    return chain_map
+
+
+def ingest_transaction(
+    w3,
+    chain_map,
+    tx_hash,
+):
+    rpc_chain_id = w3.eth.chain_id
+
+    if (
+        chain_map["chain_id"]
+        != rpc_chain_id
+    ):
+        raise ValueError(
+            "Chain map chain_id does not "
+            "match RPC chain_id"
+        )
+
+    relationships = (
+        collect_transaction_relationships(
+            w3,
+            tx_hash,
+        )
+    )
+
+    ingest_relationship_batch(
         chain_map,
         relationships,
     )

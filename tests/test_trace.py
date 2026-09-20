@@ -1,6 +1,8 @@
 import pytest
+import copy
 from web3.exceptions import Web3RPCError
 
+from modules.config import build_chainmap_trace_options
 from modules.normalize import normalize_rpc_data
 from modules.trace import generate_trace_data
 
@@ -207,12 +209,7 @@ def test_call_tracer_preserves_logs(
 ):
     tx_hash = chain_state["log_tx_hash"]
 
-    options = {
-        "tracer": "callTracer",
-        "tracerConfig": {
-            "withLog": True,
-        },
-    }
+    options = build_chainmap_trace_options()
 
     response = w3.provider.make_request(
         "debug_traceTransaction",
@@ -275,6 +272,59 @@ def test_trace_invalid_hash_raises(w3):
             w3,
             "0x1234",
         )
+
+
+def test_chainmap_trace_options_are_canonical():
+    options = build_chainmap_trace_options()
+
+    assert options == {
+        "tracer": "callTracer",
+        "tracerConfig": {
+            "withLog": True,
+        },
+    }
+
+    assert "onlyTopCall" not in (
+        options["tracerConfig"]
+    )
+
+
+def test_chainmap_trace_options_are_independent():
+    first = build_chainmap_trace_options()
+    second = build_chainmap_trace_options()
+
+    first[
+        "tracerConfig"
+    ][
+        "withLog"
+    ] = False
+
+    assert (
+        second[
+            "tracerConfig"
+        ][
+            "withLog"
+        ]
+        is True
+    )
+
+
+def test_chainmap_trace_options_not_modified_by_trace(
+    w3,
+    chain_state,
+):
+    options = build_chainmap_trace_options()
+    original = copy.deepcopy(
+        options
+    )
+
+    generate_trace_data(
+        w3,
+        chain_state["log_tx_hash"],
+        options,
+    )
+
+    assert options == original
 
 
 def test_trace_unknown_transaction_preserves_rpc_response(

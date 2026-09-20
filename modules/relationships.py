@@ -91,9 +91,9 @@ def extract_relationships(execution_records):
                 "Execution frame must include type"
             )
 
-        if frame["type"] is None:
+        if not isinstance(frame["type"], str):
             raise ValueError(
-                "Execution frame type must not be null"
+                "Execution frame type must be a string"
             )
 
         if (

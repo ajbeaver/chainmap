@@ -244,9 +244,9 @@ def _validate_relationship(relationship):
         "transaction hash",
     )
 
-    if relationship_type is None:
+    if not isinstance(relationship_type, str):
         raise ValueError(
-            "Relationship type must not be null"
+            "Relationship type must be a string"
         )
 
     if not isinstance(frame_path, list):

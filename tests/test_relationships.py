@@ -514,13 +514,23 @@ def test_relationships_reject_missing_type():
         )
 
 
-def test_relationships_reject_null_type():
+@pytest.mark.parametrize(
+    "frame_type",
+    [
+        None,
+        1234,
+        True,
+    ],
+)
+def test_relationships_reject_non_string_type(
+    frame_type,
+):
     execution_records = [
         {
             "transaction_hash": TX_HASH,
             "frame_path": [0],
             "frame": {
-                "type": None,
+                "type": frame_type,
                 "from": "0xaaa",
                 "to": "0xbbb",
             },
@@ -529,9 +539,7 @@ def test_relationships_reject_null_type():
 
     with pytest.raises(
         ValueError,
-        match=(
-            "Execution frame type must not be null"
-        ),
+        match="Execution frame type must be a string",
     ):
         extract_relationships(
             execution_records
@@ -644,3 +652,4 @@ def test_relationships_reject_boolean_frame_path_value():
         extract_relationships(
             execution_records
         )
+

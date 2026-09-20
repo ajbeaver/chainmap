@@ -704,21 +704,28 @@ def test_ingest_rejects_invalid_transaction_hash():
         )
 
 
-def test_ingest_rejects_null_type():
+@pytest.mark.parametrize(
+    "relationship_type",
+    [
+        None,
+        1234,
+        True,
+    ],
+)
+def test_ingest_rejects_non_string_type(
+    relationship_type,
+):
     chain_map = create_map(
         CHAIN_ID
     )
 
     relationship = build_relationship(
-        relationship_type=None,
+        relationship_type=relationship_type,
     )
 
     with pytest.raises(
         ValueError,
-        match=(
-            "Relationship type "
-            "must not be null"
-        ),
+        match="Relationship type must be a string",
     ):
         ingest_relationships(
             chain_map,

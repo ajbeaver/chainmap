@@ -1,4 +1,6 @@
-# ChainMap
+# ChainMap 
+
+**UNDER DEVELOPMENT**
 
 ChainMap reconstructs and continuously updates the relationships between Ethereum entities from observable on-chain evidence.
 

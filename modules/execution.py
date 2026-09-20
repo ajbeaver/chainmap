@@ -54,34 +54,44 @@ def extract_execution_frames(
 
     while stack:
         frame, frame_path = stack.pop()
-
+    
         if not isinstance(frame, Mapping):
             raise ValueError(
                 "Execution frame must be a mapping"
             )
-
+    
+        if "type" not in frame:
+            raise ValueError(
+                "Execution frame must include type"
+            )
+    
+        if not isinstance(frame["type"], str):
+            raise ValueError(
+                "Execution frame type must be a string"
+            )
+    
         children = frame.get(
             "calls",
             [],
         )
-
+    
         if not isinstance(children, list):
             raise ValueError(
                 "Execution frame calls must be a list"
             )
-
+    
         local_frame = copy.deepcopy({
             key: value
             for key, value in frame.items()
             if key != "calls"
         })
-
+    
         records.append({
             "transaction_hash": tx_hash,
             "frame_path": frame_path,
             "frame": local_frame,
         })
-
+    
         for index in range(
             len(children) - 1,
             -1,

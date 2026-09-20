@@ -402,3 +402,54 @@ def test_execution_frames_are_isolated_from_later_input_mutation():
         records[0]["frame"]["logs"][0]["data"]
         == "0x1234"
     )
+
+
+@pytest.mark.parametrize(
+    "frame_type",
+    [
+        None,
+        1234,
+        True,
+    ],
+)
+def test_execution_rejects_non_string_frame_type(
+    frame_type,
+):
+    trace_data = {
+        "type": "CALL",
+        "from": "0xaaa",
+        "to": "0xbbb",
+        "calls": [
+            {
+                "type": frame_type,
+                "from": "0xbbb",
+                "to": "0xccc",
+            },
+        ],
+    }
+
+    with pytest.raises(
+        ValueError,
+        match="Execution frame type must be a string",
+    ):
+        extract_execution_frames(
+            trace_data,
+            TX_HASH,
+        )
+
+def test_execution_preserves_unknown_string_type():
+    trace_data = {
+        "type": "FUTURE_EXECUTION_TYPE",
+        "from": "0xaaa",
+        "to": "0xbbb",
+    }
+
+    records = extract_execution_frames(
+        trace_data,
+        TX_HASH,
+    )
+
+    assert (
+        records[0]["frame"]["type"]
+        == "FUTURE_EXECUTION_TYPE"
+    )

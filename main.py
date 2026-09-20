@@ -1,20 +1,24 @@
-import logging
 import argparse
+import json
+import logging
+
+from modules.orchestration import (
+    create_chainmap_for_rpc,
+    ingest_transaction,
+)
+from modules.rpc import connect_rpc
 
 
 APP_NAME = "chainmap"
 VERSION = "v0.0.1"
 
-LINE_01 = "=" * 20
-LINE_02 = "-" * 40
-
-# Add third-party logger names used by the project.
-# Example:
-# LIBRARY_LOGGERS = ["web3", "urllib3"]
 LIBRARY_LOGGERS = [
     "web3",
     "urllib3",
 ]
+
+
+logger = logging.getLogger(__name__)
 
 
 def setup_logging(verbosity=0):
@@ -25,37 +29,61 @@ def setup_logging(verbosity=0):
         3: logging.DEBUG,
     }
 
-    level = levels.get(min(verbosity, 3), logging.DEBUG)
+    level = levels.get(
+        min(verbosity, 3),
+        logging.DEBUG,
+    )
 
     logging.basicConfig(
         level=level,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        format=(
+            "%(asctime)s - %(name)s - "
+            "%(levelname)s - %(message)s"
+        ),
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    # At -vv, show project DEBUG while suppressing dependency DEBUG.
-    # At -vvv, allow dependency DEBUG output too.
     for name in LIBRARY_LOGGERS:
         if verbosity < 3:
-            logging.getLogger(name).setLevel(logging.WARNING)
+            logging.getLogger(
+                name
+            ).setLevel(
+                logging.WARNING
+            )
+
         else:
-            logging.getLogger(name).setLevel(logging.NOTSET)
-
-
-logger = logging.getLogger(__name__)
-
-def banner():
-    print(LINE_01)
-    print(f"  {APP_NAME}")
-    print(f"  {VERSION}")
-    print(LINE_01)
-    print()
+            logging.getLogger(
+                name
+            ).setLevel(
+                logging.NOTSET
+            )
 
 
 def build_parser():
     parser = argparse.ArgumentParser(
         prog=APP_NAME,
-        description="PROJECT_DESCRIPTION",
+        description=(
+            "Build an evidence-backed relationship "
+            "map from Ethereum transactions."
+        ),
+    )
+
+    parser.add_argument(
+        "--rpc",
+        required=True,
+        help=(
+            "Ethereum HTTP/HTTPS RPC endpoint"
+        ),
+    )
+
+    parser.add_argument(
+        "transactions",
+        nargs="+",
+        metavar="TX_HASH",
+        help=(
+            "Transaction hash to ingest. "
+            "Multiple hashes may be supplied."
+        ),
     )
 
     parser.add_argument(
@@ -72,8 +100,6 @@ def build_parser():
         version=f"%(prog)s {VERSION}",
     )
 
-    # Add project-specific arguments here.
-
     return parser
 
 
@@ -81,15 +107,52 @@ def main():
     parser = build_parser()
     args = parser.parse_args()
 
-    setup_logging(args.verbose)
-    banner()
+    setup_logging(
+        args.verbose
+    )
 
-    logger.debug("Arguments: %s", args)
+    logger.info(
+        "Starting ChainMap"
+    )
 
-    # Begin project-specific logic here.
+    w3 = connect_rpc(
+        args.rpc
+    )
+
+    chain_map = (
+        create_chainmap_for_rpc(
+            w3
+        )
+    )
+
+    logger.info(
+        "Created map for chain ID %s",
+        chain_map["chain_id"],
+    )
+
+    for tx_hash in args.transactions:
+        logger.info(
+            "Processing transaction: %s",
+            tx_hash,
+        )
+
+        ingest_transaction(
+            w3,
+            chain_map,
+            tx_hash,
+        )
+
+    print(
+        json.dumps(
+            chain_map,
+            indent=2,
+        )
+    )
 
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(
+        main()
+    )
